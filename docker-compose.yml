@@ -41,7 +41,8 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      # porta do host : porta interna do nginx. Troque "8090" se quiser usar a 80.
+      - "8090:80"
 
 volumes:
   db_data:      # dados do PostgreSQL — não são perdidos entre reinícios
