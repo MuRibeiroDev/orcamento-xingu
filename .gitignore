@@ -1,0 +1,18 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+backend/.env
+backend/*.db
+backend/*.db.bak
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Sistema
+.DS_Store
+
+# Documentos da empresa (não publicar)
+*.pdf

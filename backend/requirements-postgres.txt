@@ -1,0 +1,4 @@
+# Driver do PostgreSQL — instale apenas em produção (Supabase/Postgres).
+#   pip install -r requirements-postgres.txt
+# E use no .env: DATABASE_URL=postgresql+psycopg://usuario:senha@host:5432/postgres
+psycopg[binary]==3.2.3

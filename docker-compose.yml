@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orcamentos
+      POSTGRES_PASSWORD: orcamentos
+      POSTGRES_DB: orcamentos
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orcamentos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      # Mesmo schema de hoje (SQLAlchemy), agora em PostgreSQL.
+      DATABASE_URL: postgresql+psycopg://orcamentos:orcamentos@db:5432/orcamentos
+      ADMIN_USER: glaucia
+      ADMIN_PASSWORD: troque-esta-senha
+      SECRET_KEY: troque-por-uma-chave-secreta-aleatoria
+      CORS_ORIGINS: http://localhost
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Persiste as logos enviadas pelo sistema (uploads em /static).
+      - static_data:/app/app/static
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  db_data:      # dados do PostgreSQL — não são perdidos entre reinícios
+  static_data:  # logos enviadas pelo sistema
