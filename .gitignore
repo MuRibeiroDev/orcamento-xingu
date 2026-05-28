@@ -14,5 +14,8 @@ frontend/.env
 # Sistema
 .DS_Store
 
+# Override local do compose (contém segredos do servidor)
+docker-compose.override.yml
+
 # Documentos da empresa (não publicar)
 *.pdf
