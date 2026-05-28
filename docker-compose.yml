@@ -30,8 +30,10 @@ services:
     volumes:
       # Persiste as logos enviadas pelo sistema (uploads em /static).
       - static_data:/app/app/static
-    ports:
-      - "8000:8000"
+    # O backend é acessado internamente pelo nginx (serviço frontend) via rede do Docker.
+    # Para expor a API/docs diretamente, descomente abaixo usando uma porta livre no host:
+    # ports:
+    #   - "8001:8000"
 
   frontend:
     build: ./frontend
