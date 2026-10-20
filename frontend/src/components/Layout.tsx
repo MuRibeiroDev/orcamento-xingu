@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Package, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Package, Settings, LogOut, UserRound, Images } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/", label: "Início", icon: LayoutDashboard, end: true },
   { to: "/clientes", label: "Agências", icon: Users, end: false },
   { to: "/catalogo", label: "Catálogo", icon: Package, end: false },
+  { to: "/modelos", label: "Modelos", icon: UserRound, end: false },
+  { to: "/castings", label: "Castings", icon: Images, end: false },
   { to: "/configuracoes", label: "Configurações", icon: Settings, end: false },
 ];
 

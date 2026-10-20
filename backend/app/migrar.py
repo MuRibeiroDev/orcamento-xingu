@@ -21,6 +21,10 @@ ORDEM = [
     models.CatalogoItem,
     models.Orcamento,
     models.OrcamentoItem,
+    models.Modelo,
+    models.ModeloFoto,
+    models.Casting,
+    models.CastingModelo,
 ]
 
 

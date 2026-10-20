@@ -1,7 +1,7 @@
 """Modelos do banco de dados."""
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -20,6 +20,8 @@ class Config(Base):
     assinatura_rg = Column(String, default="3987619 SPTC GO")
     # Percentual de encargos sugerido como padrão ao criar um orçamento (15%).
     encargos_padrao = Column(Float, default=15.0)
+    # Percentual da nota fiscal sugerido ao criar um orçamento (controle interno).
+    nota_padrao = Column(Float, default=0.0)
     # Logo principal da XINGU (canto superior esquerdo). Servida em /static.
     logo_path = Column(String, default="logo.png")
     # Imagem de contato @agenciaxingu (canto superior direito). Servida em /static.
@@ -56,6 +58,8 @@ class CatalogoItem(Base):
     valor_unitario_padrao = Column(Float, default=0.0)
     quantidade_sugerida = Column(Float, default=1.0)
     diarias_sugeridas = Column(Float, default=1.0)
+    # Item sem custo próprio (ex.: mão de obra): o valor inteiro conta como lucro.
+    sem_custo = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -86,6 +90,11 @@ class Orcamento(Base):
     validade = Column(String, default="")  # ex: "Proposta válida por 15 dias"
 
     status = Column(String, default="rascunho")  # rascunho | enviado | aprovado
+
+    # Controle interno (não aparece no PDF).
+    nota_percentual = Column(Float, default=0.0)  # % da nota fiscal sobre o faturamento
+    pago = Column(Boolean, default=False)
+    data_pagamento = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -113,5 +122,71 @@ class OrcamentoItem(Base):
     valor_unitario = Column(Float, default=0.0)
     # Encargos por linha: se None, usa o percentual do orçamento.
     encargos_percentual = Column(Float, nullable=True)
+    # Controle interno: sem custo (ex.: mão de obra) -> o valor inteiro conta como lucro.
+    sem_custo = Column(Boolean, default=False)
 
     orcamento = relationship("Orcamento", back_populates="itens")
+
+
+class Modelo(Base):
+    """Pessoa do banco de casting (modelo/promotora), reutilizável entre castings."""
+    __tablename__ = "modelos"
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String, nullable=False)
+    # Campos exibidos no card do casting, cada um com seu ícone (texto livre).
+    idade = Column(String, default="")
+    manequim = Column(String, default="")
+    altura = Column(String, default="")
+    destaque = Column(String, default="")  # ex: "Belo Horizonte - MG", "Bilíngue"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    fotos = relationship(
+        "ModeloFoto",
+        back_populates="modelo",
+        cascade="all, delete-orphan",
+        order_by="ModeloFoto.ordem",
+    )
+
+
+class ModeloFoto(Base):
+    """Foto de uma modelo (arquivo em /static/modelos). O card usa até 4."""
+    __tablename__ = "modelo_fotos"
+
+    id = Column(Integer, primary_key=True)
+    modelo_id = Column(Integer, ForeignKey("modelos.id"), nullable=False)
+    arquivo = Column(String, nullable=False)  # caminho relativo a /static
+    ordem = Column(Integer, default=0)
+
+    modelo = relationship("Modelo", back_populates="fotos")
+
+
+class Casting(Base):
+    """Apresentação de casting em PDF: marca (xingu | boom) + pessoas selecionadas."""
+    __tablename__ = "castings"
+
+    id = Column(Integer, primary_key=True)
+    titulo = Column(String, nullable=False)  # ex: "SIC - CRESOL" (identificação e nome do arquivo)
+    marca = Column(String, default="xingu")  # xingu | boom
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    itens = relationship(
+        "CastingModelo",
+        back_populates="casting",
+        cascade="all, delete-orphan",
+        order_by="CastingModelo.ordem",
+    )
+
+
+class CastingModelo(Base):
+    """Pessoa incluída num casting, na ordem em que aparece no PDF."""
+    __tablename__ = "casting_modelos"
+
+    id = Column(Integer, primary_key=True)
+    casting_id = Column(Integer, ForeignKey("castings.id"), nullable=False)
+    modelo_id = Column(Integer, ForeignKey("modelos.id", ondelete="CASCADE"), nullable=False)
+    ordem = Column(Integer, default=0)
+
+    casting = relationship("Casting", back_populates="itens")
+    modelo = relationship("Modelo")

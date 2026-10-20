@@ -126,6 +126,16 @@ export default function Configuracoes() {
               onChange={(v) => setCfg({ ...cfg, encargos_padrao: v })}
             />
           </div>
+          <div className="space-y-2">
+            <Label>Nota fiscal padrão (%)</Label>
+            <NumberInput
+              value={cfg.nota_padrao ?? 0}
+              onChange={(v) => setCfg({ ...cfg, nota_padrao: v })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Uso interno: sugerido em novos orçamentos, não aparece no PDF.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

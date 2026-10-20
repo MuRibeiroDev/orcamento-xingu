@@ -25,6 +25,9 @@ interface Estado {
   prazo: string;
   validade: string;
   status: string;
+  nota_percentual: number;
+  pago: boolean;
+  data_pagamento: string | null;
   itens: OrcamentoItem[];
 }
 
@@ -41,8 +44,17 @@ const inicial: Estado = {
   prazo: "",
   validade: "",
   status: "rascunho",
+  nota_percentual: 0,
+  pago: false,
+  data_pagamento: null,
   itens: [],
 };
+
+/** Data de hoje no formato do input date (AAAA-MM-DD), no fuso local. */
+function hojeISO(): string {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
 
 function calcLinha(it: OrcamentoItem, encOrc: number) {
   const perc = it.encargos_percentual ?? encOrc;
@@ -71,7 +83,11 @@ export default function OrcamentoEditor() {
     api.get("/api/clientes").then((r) => setClientes(r.data));
     api.get("/api/catalogo").then((r) => setCatalogo(r.data));
     api.get("/api/config").then((r) =>
-      setEstado((s) => (editando ? s : { ...s, encargos_percentual: r.data.encargos_padrao }))
+      setEstado((s) =>
+        editando
+          ? s
+          : { ...s, encargos_percentual: r.data.encargos_padrao, nota_percentual: r.data.nota_padrao ?? 0 }
+      )
     );
     if (editando) {
       api.get(`/api/orcamentos/${id}`).then((r) => {
@@ -90,6 +106,9 @@ export default function OrcamentoEditor() {
           prazo: o.prazo,
           validade: o.validade,
           status: o.status,
+          nota_percentual: o.nota_percentual ?? 0,
+          pago: Boolean(o.pago),
+          data_pagamento: o.data_pagamento,
           itens: o.itens,
         });
       });
@@ -102,19 +121,38 @@ export default function OrcamentoEditor() {
   const calculo = useMemo(() => {
     let total = 0,
       encargos = 0,
-      final = 0;
+      final = 0,
+      custo = 0;
     const linhas = estado.itens.map((it) => {
       const c = calcLinha(it, estado.encargos_percentual);
       total += c.total;
       encargos += c.encargos;
       final += c.total_final;
+      // Linhas sem custo (ex.: mão de obra) contam inteiras como lucro.
+      if (!it.sem_custo) custo += c.total;
       return c;
     });
-    return { linhas, total, encargos, previsao: final };
-  }, [estado.itens, estado.encargos_percentual]);
+    const lucroBruto = final - custo;
+    const nota = final * ((estado.nota_percentual || 0) / 100);
+    return {
+      linhas,
+      total,
+      encargos,
+      previsao: final,
+      custo,
+      lucroBruto,
+      nota,
+      recebimentoLiquido: final - nota,
+      lucroLiquido: lucroBruto - nota,
+    };
+  }, [estado.itens, estado.encargos_percentual, estado.nota_percentual]);
 
   function set<K extends keyof Estado>(k: K, v: Estado[K]) {
     setEstado((s) => ({ ...s, [k]: v }));
+  }
+
+  function marcarPago(pago: boolean) {
+    setEstado((s) => ({ ...s, pago, data_pagamento: pago ? s.data_pagamento || hojeISO() : null }));
   }
 
   function setItem(idx: number, patch: Partial<OrcamentoItem>) {
@@ -136,6 +174,7 @@ export default function OrcamentoEditor() {
         valor_unitario: 0,
         encargos_percentual: null,
         ordem: estado.itens.length,
+        sem_custo: false,
       },
     ]);
   }
@@ -153,6 +192,7 @@ export default function OrcamentoEditor() {
         valor_unitario: c.valor_unitario_padrao,
         encargos_percentual: null,
         ordem: estado.itens.length,
+        sem_custo: Boolean(c.sem_custo),
       },
     ]);
   }
@@ -418,6 +458,18 @@ export default function OrcamentoEditor() {
                         <div className="text-xs text-muted-foreground">
                           {formatBRL(c?.total || 0)} + {formatBRL(c?.encargos || 0)}
                         </div>
+                        <label
+                          className="mt-1 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
+                          title="Uso interno: o valor inteiro da linha conta como lucro (não aparece no PDF)"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-primary"
+                            checked={Boolean(it.sem_custo)}
+                            onChange={(e) => setItem(idx, { sem_custo: e.target.checked })}
+                          />
+                          Sem custo (mão de obra)
+                        </label>
                       </div>
                       <div className="flex justify-end md:col-span-1">
                         <Button variant="ghost" size="icon" onClick={() => removerLinha(idx)}>
@@ -445,6 +497,76 @@ export default function OrcamentoEditor() {
               <div className="flex justify-between border-t pt-1 text-base font-semibold">
                 <span>Previsão de investimento</span>
                 <span className="text-primary">{formatBRL(calculo.previsao)}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Controle interno (não vai para o PDF) */}
+      <Card className="border-dashed">
+        <CardContent className="space-y-4 p-6">
+          <div>
+            <h2 className="font-semibold">Controle interno</h2>
+            <p className="text-sm text-muted-foreground">Uso exclusivo do sistema — não aparece no PDF do orçamento.</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nota fiscal (%)</Label>
+                <NumberInput
+                  value={estado.nota_percentual}
+                  onChange={(v) => set("nota_percentual", v)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={estado.pago}
+                    onChange={(e) => marcarPago(e.target.checked)}
+                  />
+                  Pago
+                </label>
+                {estado.pago && (
+                  <div className="space-y-2">
+                    <Label>Data do pagamento</Label>
+                    <Input
+                      type="date"
+                      value={estado.data_pagamento ?? ""}
+                      onChange={(e) => set("data_pagamento", e.target.value || null)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1 rounded-lg bg-muted/50 p-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Faturamento</span>
+                <span className="font-medium">{formatBRL(calculo.previsao)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Custo (itens com custo)</span>
+                <span>{formatBRL(calculo.custo)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Lucro bruto (encargos + sem custo)</span>
+                <span>{formatBRL(calculo.lucroBruto)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nota ({estado.nota_percentual || 0}%)</span>
+                <span className="text-destructive">− {formatBRL(calculo.nota)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1">
+                <span className="text-muted-foreground">Recebimento líquido</span>
+                <span className="font-medium">{formatBRL(calculo.recebimentoLiquido)}</span>
+              </div>
+              <div className="flex justify-between text-base font-semibold">
+                <span>Lucro líquido</span>
+                <span className={calculo.lucroLiquido < 0 ? "text-destructive" : "text-green-700"}>
+                  {formatBRL(calculo.lucroLiquido)}
+                </span>
               </div>
             </div>
           </div>

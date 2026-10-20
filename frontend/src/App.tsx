@@ -7,6 +7,9 @@ import ClienteDetalhe from "./pages/ClienteDetalhe";
 import Catalogo from "./pages/Catalogo";
 import OrcamentoEditor from "./pages/OrcamentoEditor";
 import Configuracoes from "./pages/Configuracoes";
+import Modelos from "./pages/Modelos";
+import Castings from "./pages/Castings";
+import CastingEditor from "./pages/CastingEditor";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const token = localStorage.getItem("token");
@@ -30,6 +33,10 @@ export default function App() {
         <Route path="/catalogo" element={<Catalogo />} />
         <Route path="/orcamentos/novo" element={<OrcamentoEditor />} />
         <Route path="/orcamentos/:id" element={<OrcamentoEditor />} />
+        <Route path="/modelos" element={<Modelos />} />
+        <Route path="/castings" element={<Castings />} />
+        <Route path="/castings/novo" element={<CastingEditor />} />
+        <Route path="/castings/:id" element={<CastingEditor />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

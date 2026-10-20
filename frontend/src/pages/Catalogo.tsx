@@ -92,7 +92,14 @@ export default function Catalogo() {
               <TBody>
                 {itens.map((it) => (
                   <TR key={it.id}>
-                    <TD className="font-medium text-primary">{it.nome}</TD>
+                    <TD className="font-medium text-primary">
+                      {it.nome}
+                      {it.sem_custo && (
+                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          sem custo
+                        </span>
+                      )}
+                    </TD>
                     <TD className="max-w-md truncate text-muted-foreground">{it.descritivo || "—"}</TD>
                     <TD className="text-right font-medium">{formatBRL(it.valor_unitario_padrao)}</TD>
                     <TD className="text-right">
@@ -157,6 +164,20 @@ export default function Catalogo() {
                 />
               </div>
             </div>
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-primary"
+                checked={Boolean(form.sem_custo)}
+                onChange={(e) => setForm({ ...form, sem_custo: e.target.checked })}
+              />
+              <span>
+                <span className="font-medium">Sem custo (mão de obra)</span>
+                <span className="block text-xs text-muted-foreground">
+                  Uso interno: o valor inteiro conta como lucro. Pode ser trocado em cada orçamento.
+                </span>
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAberto(false)}>

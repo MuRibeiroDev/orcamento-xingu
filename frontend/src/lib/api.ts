@@ -46,6 +46,7 @@ export interface CatalogoItem {
   valor_unitario_padrao: number;
   quantidade_sugerida: number;
   diarias_sugeridas: number;
+  sem_custo?: boolean;
 }
 
 export interface OrcamentoItem {
@@ -57,6 +58,7 @@ export interface OrcamentoItem {
   valor_unitario: number;
   encargos_percentual: number | null;
   ordem: number;
+  sem_custo?: boolean;
   total?: number;
   encargos?: number;
   total_final?: number;
@@ -84,6 +86,15 @@ export interface Orcamento {
   previsao_investimento: number;
   created_at: string;
   updated_at: string;
+  nota_percentual: number;
+  pago: boolean;
+  data_pagamento: string | null;
+  faturamento: number;
+  custo: number;
+  lucro_bruto: number;
+  valor_nota: number;
+  recebimento_liquido: number;
+  lucro_liquido: number;
 }
 
 export interface OrcamentoResumo {
@@ -97,6 +108,15 @@ export interface OrcamentoResumo {
   status: string;
   previsao_investimento: number;
   created_at: string;
+  nota_percentual: number;
+  pago: boolean;
+  data_pagamento: string | null;
+  faturamento: number;
+  custo: number;
+  lucro_bruto: number;
+  valor_nota: number;
+  recebimento_liquido: number;
+  lucro_liquido: number;
 }
 
 export interface Config {
@@ -108,6 +128,49 @@ export interface Config {
   assinatura_cpf: string;
   assinatura_rg: string;
   encargos_padrao: number;
+  nota_padrao: number;
   logo_path: string;
   contato_logo_path: string;
+}
+
+// ---------- Casting ----------
+export type Marca = "xingu" | "boom";
+
+export interface ModeloFoto {
+  id: number;
+  arquivo: string;
+  ordem: number;
+}
+
+export interface Modelo {
+  id: number;
+  nome: string;
+  idade: string;
+  manequim: string;
+  altura: string;
+  destaque: string;
+  fotos: ModeloFoto[];
+  created_at?: string;
+}
+
+export interface CastingResumo {
+  id: number;
+  titulo: string;
+  marca: Marca;
+  total_modelos: number;
+  updated_at: string;
+}
+
+export interface Casting {
+  id: number;
+  titulo: string;
+  marca: Marca;
+  modelos: Modelo[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** URL pública de uma foto salva em /static. */
+export function fotoUrl(arquivo: string): string {
+  return `${API_URL}/static/${arquivo}`;
 }

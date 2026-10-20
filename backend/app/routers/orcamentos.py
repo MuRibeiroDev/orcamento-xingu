@@ -1,6 +1,6 @@
 """Rotas de orçamentos: CRUD, cálculo, duplicação e geração de PDF."""
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,6 +36,19 @@ def gerar_numero(db: Session) -> str:
     return f"{prefixo}{maior + 1:03d}"
 
 
+CAMPOS_FINANCEIROS = (
+    "faturamento", "custo", "lucro_bruto", "valor_nota", "recebimento_liquido", "lucro_liquido",
+)
+
+
+def _ajustar_pagamento(orcamento: models.Orcamento):
+    """Pago sem data assume hoje; ao desmarcar o pagamento, a data é limpa."""
+    if orcamento.pago and not orcamento.data_pagamento:
+        orcamento.data_pagamento = date.today()
+    elif not orcamento.pago:
+        orcamento.data_pagamento = None
+
+
 def serializar(orcamento: models.Orcamento) -> schemas.OrcamentoOut:
     """Monta o OrcamentoOut incluindo os valores calculados."""
     calculo = calc.calcular_orcamento(orcamento)
@@ -55,6 +68,8 @@ def serializar(orcamento: models.Orcamento) -> schemas.OrcamentoOut:
     out.soma_total = calculo["soma_total"]
     out.soma_encargos = calculo["soma_encargos"]
     out.previsao_investimento = calculo["previsao_investimento"]
+    for campo in CAMPOS_FINANCEIROS:
+        setattr(out, campo, calculo[campo])
     return out
 
 
@@ -84,6 +99,10 @@ def listar(
                 status=o.status,
                 previsao_investimento=calculo["previsao_investimento"],
                 created_at=o.created_at,
+                nota_percentual=o.nota_percentual or 0,
+                pago=bool(o.pago),
+                data_pagamento=o.data_pagamento,
+                **{campo: calculo[campo] for campo in CAMPOS_FINANCEIROS},
             )
         )
     return resultado
@@ -100,6 +119,7 @@ def criar(
     payload = dados.model_dump()
     itens = payload.pop("itens", [])
     orcamento = models.Orcamento(**payload, numero=gerar_numero(db))
+    _ajustar_pagamento(orcamento)
     for i, item in enumerate(itens):
         item["ordem"] = item.get("ordem") or i
         orcamento.itens.append(models.OrcamentoItem(**item))
@@ -131,6 +151,7 @@ def atualizar(
     itens = payload.pop("itens", None)
     for campo, valor in payload.items():
         setattr(orcamento, campo, valor)
+    _ajustar_pagamento(orcamento)
     # Substitui as linhas inteiras quando "itens" é enviado.
     if itens is not None:
         orcamento.itens.clear()
@@ -160,6 +181,7 @@ def duplicar(orcamento_id: int, db: Session = Depends(get_db), _: str = Depends(
         vencimento=orig.vencimento,
         prazo=orig.prazo,
         validade=orig.validade,
+        nota_percentual=orig.nota_percentual,
         status="rascunho",
     )
     for item in orig.itens:
@@ -172,6 +194,7 @@ def duplicar(orcamento_id: int, db: Session = Depends(get_db), _: str = Depends(
                 diarias=item.diarias,
                 valor_unitario=item.valor_unitario,
                 encargos_percentual=item.encargos_percentual,
+                sem_custo=item.sem_custo,
             )
         )
     db.add(novo)

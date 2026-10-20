@@ -16,6 +16,11 @@ de PDF fiel ao modelo da XINGU (com logo).
   condições e assinatura. Cada cliente pode ter sua **própria logo**, e ao gerar o PDF há a
   opção de incluir **as duas logos** (XINGU + cliente) no cabeçalho.
 - **Configurações**: dados fixos da empresa e upload de logo.
+- **Modelos**: banco de pessoas para casting (nome, idade, manequim, altura, cidade/destaque)
+  com até **4 fotos** cada (a ordem define a posição na grade 2×2 do PDF).
+- **Castings**: escolhe a marca da capa (**XINGU** ou **BOOM**), seleciona e ordena as modelos
+  e gera o PDF 16:9 — capa (logo à esquerda, "Casting" à direita), 2 pessoas por página
+  (fotos + nome + informações com ícones) e página final com a logo. Campos vazios não aparecem.
 
 ### Regra de cálculo
 
@@ -25,6 +30,23 @@ ENCARGOS    = TOTAL × (percentual / 100)        (padrão 15%, ajustável)
 TOTAL FINAL = TOTAL + ENCARGOS
 PREVISÃO DE INVESTIMENTO = soma dos TOTAL FINAL de todas as linhas
 ```
+
+### Controle interno (não aparece no PDF)
+
+Cada orçamento tem **% da nota fiscal** (padrão em Configurações) e **pago / data do pagamento**.
+Cada linha pode ser marcada como **sem custo** (padrão vem do item do Catálogo).
+
+```
+FATURAMENTO         = previsão de investimento (custo + encargos)
+CUSTO               = soma dos TOTAL das linhas COM custo (aluguel, terceiros, material...)
+LUCRO BRUTO         = soma dos ENCARGOS + TOTAL das linhas marcadas "sem custo" (ex.: mão de obra)
+NOTA                = FATURAMENTO × (nota% / 100)
+RECEBIMENTO LÍQUIDO = FATURAMENTO − NOTA
+LUCRO LÍQUIDO       = LUCRO BRUTO − NOTA
+```
+
+No Início, o filtro de período conta os orçamentos pela data de criação e os cards de
+pagos/faturamento/lucro/notas apenas pelos orçamentos **pagos**, pela data do pagamento.
 
 ## Tecnologias
 
@@ -165,16 +187,21 @@ backend/
     schemas.py       # Pydantic
     calc.py          # regras de cálculo (fonte única)
     auth.py          # login JWT
-    pdf.py           # geração do PDF
+    pdf.py           # geração do PDF do orçamento
+    casting_pdf.py   # geração do PDF de casting (reportlab)
+    fonts/           # fontes do PDF de casting (Bebas Neue, Outfit, Roboto Condensed — licença OFL)
+    marcas/          # logos XINGU e BOOM usadas na capa do casting
     migrar.py        # migração SQLite -> PostgreSQL
-    routers/         # auth, config, clientes, catalogo, orcamentos
-    static/          # logos (logo.png, contato.png, cliente_*.png)
+    routers/         # auth, config, clientes, catalogo, orcamentos, modelos, castings
+    static/          # logos (logo.png, contato.png, cliente_*.png) e fotos das modelos (modelos/)
+  tests/             # testes de integração (pip install -r requirements-dev.txt && pytest)
 frontend/
   Dockerfile         # build (node) + nginx
   nginx.conf         # serve a SPA e faz proxy de /api e /static -> backend
   public/assets/     # logos do sistema (logo-xingu, logo-boom, contato)
   src/
-    pages/           # Login, Dashboard, Clientes, ClienteDetalhe, Catalogo, OrcamentoEditor, Configuracoes
+    pages/           # Login, Dashboard, Clientes, ClienteDetalhe, Catalogo, OrcamentoEditor, Configuracoes,
+                     # Modelos, Castings, CastingEditor
     components/ui/   # componentes shadcn-style (inclui currency-input e number-input)
     lib/             # api, format, utils
 ```

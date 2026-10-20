@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from .config import settings
 from .database import Base, engine
-from .routers import auth, catalogo, clientes, config, orcamentos
+from .routers import auth, castings, catalogo, clientes, config, modelos, orcamentos
 
 
 def _esperar_banco(tentativas: int = 30, intervalo: float = 2.0):
@@ -50,6 +50,24 @@ def _migrar():
     if "cliente_nome" not in cols_orc:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE orcamentos ADD COLUMN cliente_nome VARCHAR DEFAULT ''"))
+    # Controle interno: nota fiscal e pagamento.
+    novas_orc = {
+        "nota_percentual": "FLOAT DEFAULT 0",
+        "pago": "BOOLEAN DEFAULT FALSE",
+        "data_pagamento": "DATE",
+    }
+    for coluna, tipo in novas_orc.items():
+        if coluna not in cols_orc:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE orcamentos ADD COLUMN {coluna} {tipo}"))
+    # Itens sem custo (ex.: mão de obra) no orçamento e no catálogo.
+    for tabela in ("orcamento_itens", "catalogo_itens"):
+        if "sem_custo" not in {c["name"] for c in inspetor.get_columns(tabela)}:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN sem_custo BOOLEAN DEFAULT FALSE"))
+    if "nota_padrao" not in cols_cfg:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE config ADD COLUMN nota_padrao FLOAT DEFAULT 0"))
 
 
 _migrar()
@@ -74,6 +92,8 @@ app.include_router(config.router)
 app.include_router(clientes.router)
 app.include_router(catalogo.router)
 app.include_router(orcamentos.router)
+app.include_router(modelos.router)
+app.include_router(castings.router)
 
 
 @app.get("/api/health")

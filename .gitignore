@@ -19,3 +19,6 @@ docker-compose.override.yml
 
 # Documentos da empresa (não publicar)
 *.pdf
+
+# Fotos das modelos enviadas pelo sistema (casting)
+backend/app/static/modelos/
